@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/home/michael/Documents/Code/KinderTales Solution/.venv/bin/python3" "$0" "$@"
+'''exec' "/home/michael/Documents/Code/KinderTales Audit Assistant/.venv/bin/python3" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re
