@@ -15,6 +15,8 @@ from tkinter import ttk
 from tkinter import filedialog
 import pandas as pd
 from fpdf import FPDF
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font
 
 
 # Functions
@@ -94,22 +96,47 @@ def export_to_excel(save_path):
 
     audit_date = date_of_audit_entry.get().strip()
     teacher_name = teacher_name_entry.get().strip()
-    metadata = f"Date of Audit: {audit_date}, \n Teacher: {teacher_name}"
-    df = pd.concat([pd.DataFrame([metadata]), df], ignore_index=True)
+    # metadata = f"Date of Audit: {audit_date}, \n Teacher: {teacher_name}"
+    metadata = pd.DataFrame(
+        [["Teacher's Name:", teacher_name], ["Date of Audit:", audit_date]],
+        columns=["", ""],
+    )
 
-    df.to_excel(save_path, index=False, engine="openpyxl")
+    with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
+        metadata.to_excel(
+            writer, index=False, header=False, startrow=0, sheet_name="Audit Report"
+        )
+        df.to_excel(
+            writer, index=False, header=True, startrow=3, sheet_name="Audit Report"
+        )
+
+        # AutoFit columns
+        sheet = writer.sheets["Audit Report"]
+        
+        for col in sheet.iter_cols():
+            max_length = 0
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            sheet.column_dimensions[col[0].column_letter].width = adjusted_width
+
+
+    print(f"Excel file saved at {save_path}")
 
 
 def export_to_pdf(save_path):
     # Create PDF instance
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
 
     # Title
     pdf.set_font("Arial", style="B", size=16)
-    pdf.cell(200, 10, "KinderTales Audit Report", ln=True, align="C")
+    pdf.cell(280, 10, "KinderTales Audit Report", ln=True, align="C")
 
     # Add metadata
     pdf.set_font("Arial", size=12)
@@ -117,18 +144,23 @@ def export_to_pdf(save_path):
     pdf.cell(0, 10, txt=f"Teacher: {teacher_name_entry.get().strip()}", ln=True)
     pdf.ln(10)
 
-    # Add table headers
+    col_widths = [max(len(col), len(str(col))) * 5 for col in columns]
+    total_width = sum(col_widths)
+
+    scale_factor = 280 / total_width
+    col_widths = [width * scale_factor for width in col_widths]
+
     pdf.set_font("Arial", style="B", size=12)
-    for col in columns:
-        pdf.cell(40, 10, col, border=1, align="C")
+    for i, col in enumerate(columns):
+        pdf.cell(col_widths[i], 10, col, border=1, align="C")
     pdf.ln()
 
     # Add table data
     pdf.set_font("Arial", size=10)
     for row_id in table.get_children():
         row_values = table.item(row_id)["values"]
-        for value in row_values:
-            pdf.cell(40, 10, str(value), border=1, align="C")
+        for i, value in enumerate(row_values):
+            pdf.cell(col_widths[i], 10, str(value), border=1, align="C")
         pdf.ln()
 
     pdf.output(save_path)
